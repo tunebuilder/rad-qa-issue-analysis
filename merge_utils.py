@@ -73,6 +73,20 @@ class MergeAuditor:
         except Exception:
             return False
 
+    def get_unmerged_issues_count(self, df: pd.DataFrame) -> int:
+        """
+        Returns the count of issues that are not part of any merge group.
+        An issue is considered unmerged if it:
+        - Has no Status set
+        - Is not a secondary issue in a merge (no Merged With Issue ID)
+        - Is not a primary issue in a merge (no Merged IDs)
+        """
+        return len(df[
+            pd.isna(df["Status"]) & 
+            pd.isna(df["Merged With Issue ID"]) & 
+            pd.isna(df["Merged IDs"])
+        ])
+
 class MergeExecutor:
     """Executes merge operations with validation and auditing"""
     
@@ -109,49 +123,58 @@ class MergeExecutor:
         Executes a merge operation with validation and auditing.
         Returns (updated_df, merge_action) or (original_df, None) if validation fails.
         """
-        issues = merge_suggestion["issues"]
-        is_valid, error = self.validator.validate_merge_group(df, issues)
+        # Get the selected issues (if available) or use all issues
+        issues = merge_suggestion.get("selected_issues", merge_suggestion["issues"])
         
+        # Validate the merge group
+        is_valid, error = self.validator.validate_merge_group(df, issues)
         if not is_valid:
-            print(f"Validation failed: {error}")
+            print(f"[ERROR] Merge validation failed: {error}")
             return df, None
             
-        df = df.copy()
+        # Extract issue information
         primary_issue = issues[0]
         secondary_issues = issues[1:]
         
-        # Fields to combine
-        combine_fields = [
-            "Failure Rationale",
-            "Investigation Notes",
-            "Final Weighted Score (1-3)",
-            "Comments"
-        ]
+        # Create a copy of the DataFrame
+        df = df.copy()
         
-        # Combine fields from all issues
-        for field in combine_fields:
-            values = df[df["Issue ID"].isin(issues)][field].tolist()
-            combined_value = self.combine_field_values(values, field)
-            df.loc[df["Issue ID"] == primary_issue, field] = combined_value
+        # Update primary issue
+        df.loc[df["Issue ID"] == primary_issue, "Status"] = "Primary"
         
-        # Update merge tracking fields
-        df.loc[df["Issue ID"] == primary_issue, "Merged IDs"] = ",".join(secondary_issues)
-        df.loc[df["Issue ID"].isin(secondary_issues), "Status"] = "Merged"
-        df.loc[df["Issue ID"].isin(secondary_issues), "Merged With Issue ID"] = primary_issue
-        
-        # Create merge action record
-        merge_action = {
-            "primary_issue": primary_issue,
-            "merged_issues": secondary_issues,
-            "rationale": merge_suggestion["rationale"],
-            "confidence": merge_suggestion.get("confidence", 1.0),
-            "merged_fields": {
-                field: df.loc[df["Issue ID"] == primary_issue, field].iloc[0]
-                for field in combine_fields
-            }
+        # Get all field values for combining
+        all_values = {
+            field: df[df["Issue ID"].isin(issues)][field].tolist()
+            for field in ["Input Prompt", "Failure Rationale"]
         }
         
-        # Log the merge
+        # Combine field values
+        combined_values = {
+            field: self.combine_field_values(values, field)
+            for field, values in all_values.items()
+        }
+        
+        # Update primary issue with combined values
+        for field, value in combined_values.items():
+            df.loc[df["Issue ID"] == primary_issue, field] = value
+            
+        # Track merged IDs in primary issue
+        df.loc[df["Issue ID"] == primary_issue, "Merged IDs"] = json.dumps(secondary_issues)
+        
+        # Update secondary issues
+        for issue_id in secondary_issues:
+            df.loc[df["Issue ID"] == issue_id, "Status"] = "Merged"
+            df.loc[df["Issue ID"] == issue_id, "Merged With Issue ID"] = primary_issue
+            
+        # Create merge action for audit
+        merge_action = {
+            "primary_issue": primary_issue,
+            "secondary_issues": secondary_issues,
+            "confidence": merge_suggestion["confidence"],
+            "rationale": merge_suggestion["rationale"]
+        }
+        
+        # Log the merge action
         self.auditor.log_merge(merge_action)
         
         return df, merge_action

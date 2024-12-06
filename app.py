@@ -131,7 +131,10 @@ st.markdown("""
 def load_and_validate_data(uploaded_file):
     """Load and validate the uploaded CSV file"""
     try:
+        print("[DEBUG] Loading CSV file...")
         df = pd.read_csv(uploaded_file)
+        print(f"[DEBUG] Loaded {len(df)} rows")
+        
         # Strip whitespace from column names
         df.columns = df.columns.str.strip()
         
@@ -149,12 +152,43 @@ def load_and_validate_data(uploaded_file):
         missing_columns = [col for col in required_columns if col not in df_columns]
         if missing_columns:
             return None, f"Missing required columns: {', '.join(missing_columns)}"
+        
+        print("[DEBUG] Initializing merge-related columns...")
+        # Initialize merge-related columns if they don't exist
+        if "Status" not in df.columns:
+            print("[DEBUG] Creating Status column")
+            df["Status"] = pd.NA
+        else:
+            print("[DEBUG] Converting existing Status column")
+            # Convert to string type and replace 'Open' with NA
+            df["Status"] = df["Status"].astype("string[python]")
+            df.loc[df["Status"] == "Open", "Status"] = pd.NA
+            
+        if "Merged With Issue ID" not in df.columns:
+            print("[DEBUG] Creating Merged With Issue ID column")
+            df["Merged With Issue ID"] = pd.NA
+        else:
+            print("[DEBUG] Converting existing Merged With Issue ID column")
+            df["Merged With Issue ID"] = df["Merged With Issue ID"].astype("string[python]")
+            
+        if "Merged IDs" not in df.columns:
+            print("[DEBUG] Creating Merged IDs column")
+            df["Merged IDs"] = pd.NA
+        else:
+            print("[DEBUG] Converting existing Merged IDs column")
+            df["Merged IDs"] = df["Merged IDs"].astype("string[python]")
+            
+        # Print column info
+        print("\n[DEBUG] Column Status:")
+        for col in ["Status", "Merged With Issue ID", "Merged IDs"]:
+            null_count = df[col].isna().sum()
+            print(f"[DEBUG] {col}: {null_count} null values out of {len(df)} rows")
             
         return df, None
     except Exception as e:
         return None, f"Error loading file: {str(e)}"
 
-def display_merge_preview(df: pd.DataFrame, merge_suggestion: dict):
+def display_merge_preview(df: pd.DataFrame, merge_suggestion: dict, group_index: int):
     """Display a detailed preview of a merge operation"""
     issues = merge_suggestion["issues"]
     primary_issue = issues[0]
@@ -173,16 +207,60 @@ def display_merge_preview(df: pd.DataFrame, merge_suggestion: dict):
     **Rationale**: {primary_data['Failure Rationale']}
     """)
     
-    # Display secondary issues
+    # Initialize selected issues in session state if not present
+    if "selected_issues" not in st.session_state:
+        st.session_state.selected_issues = {}
+    
+    # Create a unique key for this merge group
+    group_key = f"group_{group_index}"
+    if group_key not in st.session_state.selected_issues:
+        st.session_state.selected_issues[group_key] = {}
+    
+    # Display secondary issues with checkboxes
     st.write("**Issues to be Merged**")
+    selected_secondary = []
+    
+    # Display each secondary issue
     for issue_id in secondary_issues:
-        issue_data = df[df["Issue ID"] == issue_id].iloc[0]
-        st.warning(f"""
-        **ID**: {issue_id}
-        **Input**: {issue_data['Input Prompt']}
-        **Score**: {issue_data['Final Weighted Score (1-3)']}
-        **Rationale**: {issue_data['Failure Rationale']}
-        """)
+        # Create two columns - one for checkbox, one for content
+        col1, col2 = st.columns([1, 4])
+        
+        with col1:
+            # Initialize checkbox state for this issue if not present
+            if issue_id not in st.session_state.selected_issues[group_key]:
+                st.session_state.selected_issues[group_key][issue_id] = True
+                
+            # Create a checkbox for this issue with a unique key
+            is_selected = st.checkbox(
+                "Include",
+                value=st.session_state.selected_issues[group_key][issue_id],
+                key=f"checkbox_{group_index}_{issue_id}"
+            )
+            st.session_state.selected_issues[group_key][issue_id] = is_selected
+            
+        with col2:
+            issue_data = df[df["Issue ID"] == issue_id].iloc[0]
+            st.markdown(f"""
+            **Issue {issue_id}**
+            - **Input**: {issue_data['Input Prompt']}
+            - **Score**: {issue_data['Final Weighted Score (1-3)']}
+            - **Rationale**: {issue_data['Failure Rationale']}
+            """)
+            
+        if is_selected:
+            selected_secondary.append(issue_id)
+            
+        # Add a divider between issues
+        st.divider()
+    
+    # Show warning if some issues are deselected
+    if len(selected_secondary) < len(secondary_issues):
+        excluded_count = len(secondary_issues) - len(selected_secondary)
+        excluded_ids = [id for id in secondary_issues if id not in selected_secondary]
+        st.warning(f"⚠️ {excluded_count} issues excluded: {', '.join(excluded_ids)}")
+    
+    # Store the final selection in the merge suggestion
+    merge_suggestion["selected_issues"] = [primary_issue] + selected_secondary
     
     # Display merge confidence and rationale
     st.write("**Merge Details**")
@@ -199,31 +277,60 @@ def analyze_issues():
             st.error("No data available for analysis. Please check the data files.")
             return
 
+        print("\n[DEBUG] Calculating metrics...")
+        print(f"[DEBUG] Total rows in DataFrame: {len(df)}")
+        
+        # Validate Status values
+        valid_status_values = {"Merged", "Primary"}
+        invalid_status = df[~pd.isna(df["Status"]) & ~df["Status"].isin(valid_status_values)]
+        if len(invalid_status) > 0:
+            print("[WARNING] Found invalid Status values:")
+            print(invalid_status["Status"].value_counts())
+            
+        # Calculate active issues (not merged and not a primary issue)
+        active_mask = (
+            (pd.isna(df["Status"]) | ~df["Status"].isin(["Merged", "Primary"])) &  # Not merged or primary
+            pd.isna(df["Merged With Issue ID"])  # Not a secondary issue
+        )
+        active_count = active_mask.sum()
+        print(f"[DEBUG] Active issues count: {active_count}")
+        print("[DEBUG] Active issues breakdown:")
+        print("- Status is NA:", pd.isna(df["Status"]).sum())
+        print("- Status not in [Merged, Primary]:", (~df["Status"].isin(["Merged", "Primary"])).sum())
+        print("- Not a secondary issue:", pd.isna(df["Merged With Issue ID"]).sum())
+        
+        print("\n[DEBUG] Status value counts:")
+        print(df["Status"].value_counts(dropna=False))
+        
+        # Calculate merged groups
+        merged_groups = len(df[df["Status"] == "Merged"])
+        print(f"[DEBUG] Merged groups (Status is 'Merged'): {merged_groups}")
+        
+        # Calculate unmerged issues
+        unmerged_mask = (
+            pd.isna(df["Status"]) & 
+            pd.isna(df["Merged With Issue ID"]) & 
+            pd.isna(df["Merged IDs"])
+        )
+        unmerged_count = unmerged_mask.sum()
+        print(f"[DEBUG] Unmerged issues: {unmerged_count}")
+        
+        # Debug merge-related columns
+        print("[DEBUG] Merge-related columns status:")
+        print(f"Status NA count: {pd.isna(df['Status']).sum()}")
+        print(f"Merged With Issue ID NA count: {pd.isna(df['Merged With Issue ID']).sum()}")
+        print(f"Merged IDs NA count: {pd.isna(df['Merged IDs']).sum()}")
+        
         # Display issue counts
-        active_issues = df[
-            (df["Merged With Issue ID"].isna()) |  # Unmerged issues
-            (df["Status"] == "Merged")  # Merged groups
-        ]
-        
         col1, col2, col3 = st.columns(3)
+        
         with col1:
-            st.metric("Active Issues", len(active_issues))
+            st.metric("Active Issues", active_count)
         with col2:
-            st.metric("Merged Groups", len(df[df["Status"] == "Merged"]))
+            st.metric("Merged Groups", merged_groups)
         with col3:
-            st.metric("Unmerged Issues", len(df[df["Status"].isna()]))
-
-        # Show analysis scope
-        st.info("""
-        ℹ️ Analysis Scope:
+            st.metric("Unmerged Issues", unmerged_count)
         
-        The analysis will be performed on active issues only, which includes:
-        1. Merged issue groups (representing multiple related issues)
-        2. Individual unmerged issues
-        
-        Individual issues that were merged into groups are excluded to avoid redundancy.
-        """)
-
         if st.button("Generate Analysis Report", type="primary"):
             with st.spinner("Analyzing issues and generating report..."):
                 try:
@@ -310,14 +417,16 @@ def main():
             
             with col2:
                 st.markdown('<div class="metric-container">', unsafe_allow_html=True)
-                active_issues = len(df[df["Status"].isna()])
+                # Active issues are those not marked as merged
+                active_issues = len(df[pd.isna(df["Status"]) | (df["Status"] != "Merged")])
                 st.metric("Active Issues", active_issues)
                 st.markdown('</div>', unsafe_allow_html=True)
             
             with col3:
                 st.markdown('<div class="metric-container">', unsafe_allow_html=True)
-                merged_issues = len(df[df["Status"] == "Merged"])
-                st.metric("Merged Issues", merged_issues)
+                # Unmerged issues are those not part of any merge group (either as primary or secondary)
+                unmerged_issues = len(df[pd.isna(df["Status"]) & pd.isna(df["Merged With Issue ID"]) & pd.isna(df["Merged IDs"])])
+                st.metric("Unmerged Issues", unmerged_issues)
                 st.markdown('</div>', unsafe_allow_html=True)
             
             # Charts with consistent styling...
@@ -364,58 +473,66 @@ def main():
                     </div>
                     ''', unsafe_allow_html=True)
                     
-                    with st.expander(f"View Details"):
-                        display_merge_preview(df, suggestion)
+                    display_merge_preview(df, suggestion, i)
                         
-                        # Add merge button for this group
-                        if st.button(f"Apply Merge {i}", key=f"merge_{i}"):
-                            with st.spinner("Applying merge..."):
-                                updated_df, merge_action = merge_executor.execute_merge(df, suggestion)
+                    # Add merge button for this group
+                    if st.button(f"Apply Merge {i}", key=f"merge_{i}"):
+                        with st.spinner("Applying merge..."):
+                            updated_df, merge_action = merge_executor.execute_merge(df, suggestion)
                                 
-                                if merge_action:
-                                    st.success("Merge completed successfully!")
-                                    # Update the DataFrame in session state
-                                    st.session_state.df = updated_df
-                                    # Remove the applied suggestion
-                                    st.session_state.merge_suggestions = [
-                                        s for s in st.session_state.merge_suggestions 
-                                        if s != suggestion
-                                    ]
+                            if merge_action:
+                                st.success("Merge completed successfully!")
+                                # Update the DataFrame in session state
+                                st.session_state.df = updated_df
+                                # Remove the applied suggestion
+                                st.session_state.merge_suggestions = [
+                                    s for s in st.session_state.merge_suggestions 
+                                    if s != suggestion
+                                ]
                                     
-                                    # Allow downloading the updated CSV
-                                    st.download_button(
-                                        "Download Updated CSV",
-                                        updated_df.to_csv(index=False).encode('utf-8'),
-                                        "merged_issues.csv",
-                                        "text/csv",
-                                        key=f'download-csv-{i}'
-                                    )
+                                # Allow downloading the updated CSV
+                                st.download_button(
+                                    "Download Updated CSV",
+                                    updated_df.to_csv(index=False).encode('utf-8'),
+                                    "merged_issues.csv",
+                                    "text/csv",
+                                    key=f'download-csv-{i}'
+                                )
                                     
-                                    # Force a rerun to update the UI
-                                    st.rerun()
-                                else:
-                                    st.error("Merge validation failed. Please check the issues and try again.")
+                                # Force a rerun to update the UI
+                                st.rerun()
+                            else:
+                                st.error("Merge validation failed. Please check the issues and try again.")
         
         elif st.session_state.current_tab == 2:  # Merge History tab
             st.markdown('<h2 class="section-header">Merge History</h2>', unsafe_allow_html=True)
             
-            # Get cache status
-            use_cache = st.session_state.get('use_cache', True)
-            merge_history = merge_executor.auditor.get_merge_history(use_cache=use_cache)
+            # Load and display merge history
+            auditor = merge_executor.auditor
+            history = auditor.get_merge_history()
             
-            if not merge_history:
-                if not use_cache:
-                    st.info("Cache usage is disabled. Enable it in the Merge Analysis tab to view merge history.")
-                else:
-                    st.info("No merge history available yet.")
-            else:
-                for entry in merge_history:
-                    with st.expander(f"Merge: {entry['primary_issue']} + {len(entry['merged_issues'])} issues"):
-                        st.write(f"**Primary Issue:** {entry['primary_issue']}")
-                        st.write(f"**Merged Issues:** {', '.join(entry['merged_issues'])}")
-                        st.write(f"**Confidence:** {entry['confidence']:.2f}")
-                        st.write(f"**Rationale:** {entry['rationale']}")
-                        st.write(f"**Timestamp:** {entry['timestamp']}")
+            if not history:
+                st.info("No merge history available yet.")
+                return
+                
+            for entry in history:
+                # Get the number of secondary issues
+                secondary_count = len(entry.get('secondary_issues', []))
+                
+                with st.expander(f"Merge: {entry['primary_issue']} + {secondary_count} issues"):
+                    st.write("**Primary Issue**")
+                    st.info(f"Issue ID: {entry['primary_issue']}")
+                    
+                    st.write("**Secondary Issues**")
+                    for issue_id in entry.get('secondary_issues', []):
+                        st.warning(f"Issue ID: {issue_id}")
+                    
+                    st.write("**Merge Details**")
+                    st.success(f"""
+                    **Confidence**: {entry.get('confidence', 'N/A')}
+                    **Rationale**: {entry.get('rationale', 'N/A')}
+                    **Timestamp**: {entry.get('timestamp', 'N/A')}
+                    """)
         
         if st.session_state.get("df") is not None:
             st.divider()

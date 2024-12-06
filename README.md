@@ -9,10 +9,10 @@ The QA Issues Analysis Tool is designed to automate and enhance the quality assu
 ### Key Features
 
 - 📊 **Automated Issue Analysis**: Uses GPT-4o to analyze QA issues and identify patterns
-- 🔄 **Smart Issue Merging**: Automatically suggests and handles merging of related issues
+- 🔄 **Smart Issue Merging**: Automatically suggests and handles merging of related issues with selective merge options
 - 📈 **Comprehensive Reporting**: Generates detailed PDF reports with insights and recommendations
 - 💾 **Cache Management**: Efficient handling of merge history with options to use or clear cache
-- 📱 **Modern UI**: Clean, intuitive interface built with Streamlit
+- 📱 **Modern UI**: Clean, intuitive interface with streamlined controls
 
 ## Installation
 
@@ -107,6 +107,7 @@ Required CSV columns:
 - LLM-powered merge suggestions
 - Confidence scoring
 - Detailed merge previews
+- Selective merge functionality for individual issues
 - Cache management options
 
 ### 3. Merge History Tab
@@ -129,6 +130,46 @@ Generated PDF reports include:
 - Priority recommendations
 - Visual data representations
 - Improvement roadmap
+
+### Analysis Scope
+The analysis focuses on active issues to provide relevant insights:
+- **Included Issues**:
+  1. Merged issue groups (representing multiple related issues)
+  2. Individual unmerged issues
+- **Excluded Issues**: Individual issues that were previously merged into groups (to avoid redundancy)
+
+Each merged group represents multiple related issues that share common patterns or root causes, ensuring a comprehensive yet non-redundant analysis.
+
+## Recent Improvements
+
+### Bug Fixes
+1. **Unmerged Issues Counter**
+   - Fixed issue count tracking for non-merged items
+   - Added real-time updates for merge decisions
+   - Implemented validation testing
+
+2. **Active Issues Counter**
+   - Corrected 'Active Issues' calculation
+   - Improved status field validation
+   - Added test cases for counter accuracy
+
+### UI Enhancements
+1. **Selective Merge Functionality**
+   - Added ability to exclude specific issues from merge groups
+   - Individual issue selection within merge groups
+   - Preview updates for partial selections
+   - Validation for partial merge scenarios
+
+2. **Interface Decluttering**
+   - Streamlined UI elements for better user experience
+   - Moved detailed information to documentation
+   - Enhanced overall interface clarity
+
+### Documentation Updates
+- Expanded README with detailed feature descriptions
+- Added comprehensive analysis scope information
+- Updated technical documentation for new features
+- Included validation and testing procedures
 
 ## Development
 
@@ -156,8 +197,7 @@ SUDCare-issue-analysis/
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Acknowledgments
+## Deployment
 
-- Built with [Streamlit](https://streamlit.io/)
-- Powered by [OpenAI GPT-4o](https://openai.com/gpt-4)
-- Developed by the Dimagi team
+
+

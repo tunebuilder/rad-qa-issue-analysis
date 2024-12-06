@@ -40,19 +40,27 @@ Provide your response in the following JSON format:
     ]
 }}"""
 
-def analyze_issues_for_merge(df: pd.DataFrame, batch_size: int = 50) -> List[Dict]:
+def analyze_issues_for_merge(df: pd.DataFrame) -> List[Dict]:
     """
     Analyze issues to identify potential merges using the LLM.
     Returns a list of merge suggestions.
     """
     all_merge_suggestions = []
+    processed_issues = set()  # Track which issues have been included in suggestions
     
-    # Filter for open issues only
-    open_issues_df = df[df["Status"].fillna("Open") == "Open"]
-    print(f"\n[DEBUG] Found {len(open_issues_df)} open issues out of {len(df)} total issues")
+    # Filter for unmerged issues only
+    unmerged_mask = (
+        pd.isna(df["Status"]) & 
+        pd.isna(df["Merged With Issue ID"]) & 
+        pd.isna(df["Merged IDs"])
+    )
+    open_issues_df = df[unmerged_mask].copy()
+    
+    print(f"\n[DEBUG] Status value counts before filtering:\n{df['Status'].value_counts(dropna=False)}")
+    print(f"[DEBUG] Found {len(open_issues_df)} unmerged issues out of {len(df)} total issues")
     
     if len(open_issues_df) == 0:
-        print("[DEBUG] No open issues found to analyze")
+        print("[DEBUG] No unmerged issues found to analyze")
         return []
     
     # Group issues by standard first
@@ -60,101 +68,105 @@ def analyze_issues_for_merge(df: pd.DataFrame, batch_size: int = 50) -> List[Dic
     print(f"[DEBUG] Found {len(standards)} unique standards to analyze")
     
     for standard in standards:
-        # Get issues for this standard
+        # Get all issues for this standard
         standard_df = open_issues_df[open_issues_df["Linked Standard"] == standard]
         print(f"\n[DEBUG] Processing standard: {standard}")
-        print(f"[DEBUG] Found {len(standard_df)} open issues for this standard")
+        print(f"[DEBUG] Found {len(standard_df)} unmerged issues for this standard")
         
         # Skip if less than 2 issues for this standard
         if len(standard_df) < 2:
             print("[DEBUG] Skipping standard - less than 2 issues")
             continue
-            
-        # Process issues in batches to stay within token limits
-        for i in range(0, len(standard_df), batch_size):
-            batch = standard_df.iloc[i:i+batch_size]
-            print(f"\n[DEBUG] Processing batch {i//batch_size + 1} with {len(batch)} issues")
-            
-            # Create a list of issue dictionaries for the batch
-            issues = []
-            for _, row in batch.iterrows():
-                issue = {
-                    "issue_id": row["Issue ID"],
-                    "input_prompt": row["Input Prompt"],
-                    "failure_rationale": row["Failure Rationale"],
-                    "linked_standard": row["Linked Standard"].strip(),
-                    "final_score": row["Final Weighted Score (1-3)"]
-                }
-                issues.append(issue)
-                print(f"[DEBUG] Added issue {issue['issue_id']} to batch")
-            
-            # Skip if not enough issues in batch
-            if len(issues) < 2:
-                print("[DEBUG] Skipping batch - less than 2 issues")
+        
+        # Create list of all unprocessed issues for this standard
+        standard_issues = []
+        for _, row in standard_df.iterrows():
+            issue_id = row["Issue ID"]
+            # Skip if this issue has already been processed
+            if issue_id in processed_issues:
                 continue
+                
+            issue = {
+                "issue_id": issue_id,
+                "input_prompt": row["Input Prompt"],
+                "failure_rationale": row["Failure Rationale"],
+                "linked_standard": row["Linked Standard"].strip(),
+                "final_score": row["Final Weighted Score (1-3)"]
+            }
+            standard_issues.append(issue)
+        
+        # Skip if no unprocessed issues
+        if len(standard_issues) < 2:
+            print("[DEBUG] No unprocessed issues for this standard")
+            continue
             
-            # Get merge suggestions from LLM
+        print(f"[DEBUG] Analyzing {len(standard_issues)} unprocessed issues for standard {standard}")
+        
+        try:
+            print("\n[DEBUG] Sending request to LLM...")
+            completion = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """You are an expert at analyzing QA issues and identifying patterns and similarities between issues.
+                        When analyzing issues:
+                        1. Look for similar root causes or overlapping problems
+                        2. Issues with similar themes or patterns should be merged
+                        3. Consider all possible relationships between issues
+                        4. Group related issues together - don't split them across multiple suggestions
+                        5. Only suggest merges when there is strong similarity (confidence >= 0.8)
+                        6. You can suggest multiple issues be merged together if they are all related"""
+                    },
+                    {
+                        "role": "user",
+                        "content": create_merge_analysis_prompt(standard_issues)
+                    }
+                ],
+                temperature=0.3  # Lower temperature for more consistent analysis
+            )
+            
+            # Parse the response
+            response_text = completion.choices[0].message.content
+            print("\n[DEBUG] Raw LLM response:")
+            print(response_text)
+            
             try:
-                print("\n[DEBUG] Sending request to LLM...")
-                completion = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": """You are an expert at analyzing QA issues and identifying patterns and similarities between issues.
-                            When analyzing issues:
-                            1. Look for similar root causes or overlapping problems
-                            2. Issues with similar themes or patterns should be merged
-                            3. Provide detailed rationale for suggested merges"""
-                        },
-                        {
-                            "role": "user",
-                            "content": create_merge_analysis_prompt(issues)
-                        }
-                    ],
-                    temperature=0.3  # Lower temperature for more consistent analysis
-                )
+                # Clean up the response text to handle markdown formatting
+                cleaned_response = response_text.strip()
+                if cleaned_response.startswith("```"):
+                    cleaned_response = cleaned_response.split("```")[1]
+                    if cleaned_response.startswith("json"):
+                        cleaned_response = cleaned_response[4:]
+                    cleaned_response = cleaned_response.strip()
                 
-                # Parse the response
-                response_text = completion.choices[0].message.content
-                print("\n[DEBUG] Raw LLM response:")
-                print(response_text)
-                print("\n[DEBUG] Attempting to parse JSON response...")
+                merge_suggestions = json.loads(cleaned_response)
+                new_suggestions = merge_suggestions.get("merge_groups", [])
                 
-                try:
-                    # Clean up the response text to handle markdown formatting
-                    cleaned_response = response_text.strip()
-                    if cleaned_response.startswith("```"):
-                        # Remove markdown code block formatting
-                        cleaned_response = cleaned_response.split("```")[1]  # Get content between first set of ```
-                        if cleaned_response.startswith("json"):
-                            cleaned_response = cleaned_response[4:]  # Remove "json" language identifier
-                        cleaned_response = cleaned_response.strip()
-                    
-                    print("[DEBUG] Cleaned response:")
-                    print(cleaned_response)
-                    
-                    merge_suggestions = json.loads(cleaned_response)
-                    new_suggestions = merge_suggestions.get("merge_groups", [])
-                    print(f"[DEBUG] Successfully parsed {len(new_suggestions)} merge suggestions")
-                    for suggestion in new_suggestions:
-                        print(f"\n[DEBUG] Merge suggestion:")
-                        print(f"  Issues: {suggestion['issues']}")
-                        print(f"  Confidence: {suggestion['confidence']}")
-                        print(f"  Rationale: {suggestion['rationale']}")
-                    all_merge_suggestions.extend(new_suggestions)
-                    
-                except json.JSONDecodeError as e:
-                    print(f"[DEBUG] Error parsing LLM response: {str(e)}")
-                    print("[DEBUG] Invalid JSON structure in response")
-                    continue
+                # Filter out suggestions that include already processed issues
+                valid_suggestions = []
+                for suggestion in new_suggestions:
+                    issues = suggestion["issues"]
+                    if not any(issue in processed_issues for issue in issues):
+                        # Only accept high confidence suggestions
+                        if suggestion["confidence"] >= 0.8:
+                            valid_suggestions.append(suggestion)
+                            # Mark these issues as processed
+                            processed_issues.update(issues)
                 
-            except Exception as e:
-                print(f"[DEBUG] Error processing batch: {str(e)}")
+                print(f"[DEBUG] Found {len(valid_suggestions)} valid merge suggestions")
+                all_merge_suggestions.extend(valid_suggestions)
+                
+            except json.JSONDecodeError as e:
+                print(f"[DEBUG] Error parsing LLM response: {str(e)}")
                 continue
+            
+        except Exception as e:
+            print(f"[DEBUG] Error processing standard {standard}: {str(e)}")
+            continue
     
     print(f"\n[DEBUG] Analysis complete")
-    print(f"[DEBUG] Found {len(all_merge_suggestions)} total merge suggestions across {len(standards)} standards")
+    print(f"[DEBUG] Found {len(all_merge_suggestions)} total merge suggestions")
     return all_merge_suggestions
 
 def apply_merges(df: pd.DataFrame, merge_suggestions: List[Dict]) -> Tuple[pd.DataFrame, List[Dict]]:

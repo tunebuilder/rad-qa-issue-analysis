@@ -20,12 +20,12 @@ def create_analysis_prompt(df: pd.DataFrame) -> str:
     # Get active issues
     active_issues = df[
         (df["Merged With Issue ID"].isna()) |  # Unmerged issues
-        (df["Status"] == "Merged")  # Merged groups
+        (df["Status"].fillna("").str.strip() == "Merged")  # Merged groups
     ]
     
     # Get summary statistics
     total_active = len(active_issues)
-    merged_groups = len(active_issues[active_issues["Status"] == "Merged"])
+    merged_groups = len(active_issues[active_issues["Status"].fillna("").str.strip() == "Merged"])
     unmerged_issues = total_active - merged_groups
     standards = active_issues["Linked Standard"].unique().tolist()
     
@@ -35,12 +35,12 @@ def create_analysis_prompt(df: pd.DataFrame) -> str:
         standard_issues = active_issues[active_issues["Linked Standard"] == standard]
         issues_by_standard[standard] = [
             {
-                "issue_id": row["Issue ID"],
-                "input_prompt": row["Input Prompt"],
-                "failure_rationale": row["Failure Rationale"],
-                "score": row["Final Weighted Score (1-3)"],
-                "status": row["Status"],
-                "is_merged_group": row["Status"] == "Merged"
+                "issue_id": str(row["Issue ID"]),
+                "input_prompt": str(row["Input Prompt"]),
+                "failure_rationale": str(row["Failure Rationale"]) if pd.notna(row["Failure Rationale"]) else None,
+                "score": float(row["Final Weighted Score (1-3)"]) if pd.notna(row["Final Weighted Score (1-3)"]) else None,
+                "status": str(row["Status"]) if pd.notna(row["Status"]) else None,
+                "is_merged_group": str(row["Status"]).strip() == "Merged" if pd.notna(row["Status"]) else False  # Handle NA for individual rows
             }
             for _, row in standard_issues.iterrows()
         ]
@@ -107,15 +107,16 @@ def analyze_qa_issues(df: pd.DataFrame) -> Dict:
     Only considers active issues (unmerged + merged groups).
     """
     try:
-        # Filter for active issues
+        # Filter for active issues - handle NA values explicitly
         active_issues = df[
             (df["Merged With Issue ID"].isna()) |  # Unmerged issues
-            (df["Status"] == "Merged")  # Merged groups
+            (df["Status"].fillna("").str.strip() == "Merged")  # Merged groups for DataFrame operations
         ].copy()
         
+        merged_mask = active_issues["Status"].fillna("").str.strip() == "Merged"
         print(f"Analyzing {len(active_issues)} active issues...")
-        print(f"- Merged Groups: {len(active_issues[active_issues['Status'] == 'Merged'])}")
-        print(f"- Unmerged Issues: {len(active_issues[active_issues['Status'] != 'Merged'])}")
+        print(f"- Merged Groups: {merged_mask.sum()}")
+        print(f"- Unmerged Issues: {(~merged_mask).sum()}")
         
         # Create and send the analysis prompt
         prompt = create_analysis_prompt(active_issues)
@@ -202,7 +203,7 @@ def generate_priority_areas(df: pd.DataFrame, analysis_results: Dict) -> List[Di
         # Calculate metrics
         issue_count = len(standard_df)
         avg_score = standard_df["Final Weighted Score (1-3)"].mean()
-        has_merged = any(standard_df["Status"] == "Merged")
+        has_merged = (standard_df["Status"].fillna("").str.strip() == "Merged").any()  # DataFrame operation
         
         # Calculate priority score
         priority_score = calculate_priority_score(issue_count, avg_score, has_merged)
