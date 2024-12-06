@@ -1,0 +1,8 @@
+streamlit==1.31.1
+pandas==2.1.4
+openai
+python-dotenv==1.0.1
+fpdf2==2.7.8
+matplotlib==3.8.2
+seaborn==0.13.2
+kaleido==0.2.1
