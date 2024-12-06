@@ -5,4 +5,5 @@ python-dotenv==1.0.1
 fpdf2==2.7.8
 matplotlib==3.8.2
 seaborn==0.13.2
+plotly==5.14.1
 kaleido==0.2.1
