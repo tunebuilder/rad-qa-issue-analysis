@@ -3,8 +3,8 @@
 # Written by: David Warren
 # Last updated: Dec 7, 2024
 #
-# Core utilities for analyzing our QA testing data. Uses OpenAI's GPT-4 
-# to help spot patterns and generate insights from our test results.
+# Core utilities for analyzing QA testing data. Uses OpenAI's GPT-4o 
+# to help spot patterns and generate insights from test results.
 """
 
 from typing import Dict, List, Optional
@@ -14,7 +14,7 @@ import json
 import os
 from dotenv import load_dotenv
 
-# Grab our env vars
+# Grab env vars
 load_dotenv()
 
 # Set up OpenAI - using their official API
@@ -25,8 +25,8 @@ client = OpenAI(
 
 def create_analysis_prompt(df: pd.DataFrame) -> str:
     """
-    Builds the prompt we send to GPT-4 for analyzing our QA data.
-    Takes our test results and formats them in a way the model can understand.
+    Builds the prompt sent to GPT-4o for analyzing QA data.
+    Takes  test results and formats them in a way the model can understand.
     """
     
     # Get active issues
@@ -115,7 +115,7 @@ Please provide your analysis in the following JSON format:
 
 def analyze_qa_issues(df: pd.DataFrame) -> Dict:
     """
-    Main analysis function - looks through our QA data to find patterns and problems.
+    Main analysis function - looks through QA data to find patterns and problems.
     Only looks at active stuff (unmerged issues + merged groups) to avoid duplicates.
     """
     try:
@@ -202,7 +202,7 @@ def calculate_priority_score(issue_count: int, avg_score: float, is_merged: bool
 
 def generate_priority_areas(df: pd.DataFrame, analysis_results: Dict) -> List[Dict]:
     """
-    Takes our analysis and raw data to figure out what we need to fix first.
+    Takes analysis and raw data to figure out what we need to fix first.
     Spits out a sorted list of problem areas with their priority scores.
     """
     priority_areas = []

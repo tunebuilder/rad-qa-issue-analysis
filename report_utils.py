@@ -3,7 +3,7 @@
 # Author: David Warren
 # Created: Dec 7, 2024
 #
-# Handles report generation for our QA analysis results.
+# Handles report generation forQA analysis results.
 # Uses matplotlib for charts and FPDF for the PDF output.
 """
 
@@ -22,7 +22,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Tweaked matplotlib to make our charts look better
+# Tweaked matplotlib to make charts look better
 plt.style.use('bmh')  # Using a built-in style that's always available
 plt.rcParams.update({
     'figure.figsize': [10, 6],
@@ -35,7 +35,7 @@ plt.rcParams.update({
     'grid.alpha': 0.3
 })
 
-# Making seaborn play nice with our style
+# Making seaborn play nice with current style
 sns.set_theme(style="whitegrid", palette="deep")
 
 class QAReport(FPDF):
@@ -47,7 +47,7 @@ class QAReport(FPDF):
         self._create_header()
     
     def _create_header(self):
-        """Puts our standard header on each page"""
+        """Puts a standard header on each page"""
         self.set_font('Arial', 'B', 16)
         self.cell(0, 10, 'SUDCare QA Analysis Report', ln=True, align='C')
         self.set_font('Arial', '', 11)
@@ -55,7 +55,7 @@ class QAReport(FPDF):
         self.ln(5)
     
     def chapter_title(self, title: str):
-        """Adds a big heading for new chapters"""
+        """Adds a larger heading for new chapters"""
         self.set_font('Arial', 'B', 14)
         self.cell(0, 10, title, ln=True)
         self.set_font('Arial', '', 11)
@@ -98,14 +98,14 @@ class QAReport(FPDF):
         self.ln(2)
     
     def bullet_points(self, points: List[str]):
-        """Makes nice bullet point lists"""
+        """Makes bullet point lists"""
         self.set_font('Arial', '', 11)
         for point in points:
             self.cell(5, 5, "•", ln=0)
             self.cell(0, 5, point, ln=True)
     
     def add_chart(self, image_path: str, caption: str = None):
-        """Drops in a chart and centers it nicely"""
+        """Drops in a chart and centers it"""
         if os.path.exists(image_path):
             # Calculate image dimensions to fit page width
             img_width = self.w - 2 * self.l_margin
@@ -116,7 +116,7 @@ class QAReport(FPDF):
             self.ln(5)
 
 def save_chart(fig, filename: str) -> bool:
-    """Saves our matplotlib charts as PNG files"""
+    """Saves matplotlib charts as PNG files"""
     try:
         logger.debug(f"Attempting to save {filename}")
         fig.savefig(filename, bbox_inches='tight', dpi=100)

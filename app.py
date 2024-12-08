@@ -1,11 +1,11 @@
 """
 # QA Issues Analysis Tool for SUDCare Chatbot
-# Author: John Smith
+# Author: David Warren
 # Created: December 7, 2024
 #
-# This is our main application for analyzing QA testing issues in the SUDCare chatbot.
-# It helps us identify patterns in QA failures and suggests potential issue merges
-# to streamline our testing process.
+# Main application for analyzing QA testing issues in the SUDCare chatbot.
+# Helps identify patterns in QA failures and suggests potential issue merges
+# to streamline testing process.
 """
 
 import streamlit as st
@@ -24,10 +24,10 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Load our config from .env file
+# Load config from .env file
 load_dotenv()
 
-# Set up our merge helper
+# Set up merge helper
 merge_executor = MergeExecutor()
 
 # Set up the page layout - using wide mode for better data visibility
@@ -37,7 +37,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# These are our core QA standards that we check against
+# These are the core QA standards that we check against
 QA_STANDARDS = [
     "Suzy introduces itself clearly, explaining its supportive role in recovery",
     "Suzy uses accessible, recovery-specific language",
@@ -52,7 +52,7 @@ QA_STANDARDS = [
     "Suzy offers relevant, supportive educational information when appropriate"
 ]
 
-# Keep track of our app's state between reruns
+# Keep track of app's state between reruns
 if 'df' not in st.session_state:
     st.session_state.df = None
 if 'merge_suggestions' not in st.session_state:
@@ -62,7 +62,7 @@ if 'analysis_results' not in st.session_state:
 if 'current_tab' not in st.session_state:
     st.session_state.current_tab = 0
 
-# Some custom CSS to make the UI look cleaner and more professional
+# Custom CSS to make the UI look cleaner
 st.markdown("""
 <style>
     /* File upload area */
@@ -140,8 +140,8 @@ st.markdown("""
 @st.cache_data
 def load_and_validate_data(uploaded_file):
     """
-    Handles the loading and validation of our CSV data file.
-    Makes sure we have all required columns and sets up merge tracking columns.
+    Handles the loading and validation of CSV data file.
+    Makes sure all required columns and sets up merge tracking columns.
     Returns the processed dataframe or an error message if something's wrong.
     """
     try:

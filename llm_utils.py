@@ -3,7 +3,7 @@
 # Author: David Warren
 # Created: Dec 7, 2024
 #
-# Handles all our OpenAI GPT-4o integration for analyzing QA issues.
+# Handles allOpenAI GPT-4o integration for analyzing QA issues.
 # Main focus is on finding similar issues we can merge to reduce duplicates.
 """
 
@@ -24,7 +24,7 @@ if not api_key:
 
 print(f"[DEBUG] Using API key starting with: {api_key[:10]}...")
 
-# Set up our OpenAI connection
+# Set up OpenAI connection
 client = OpenAI(
     api_key=api_key,
     base_url="https://api.openai.com/v1"  # Explicitly set base URL
@@ -33,7 +33,7 @@ client = OpenAI(
 def create_merge_analysis_prompt(issues: List[Dict]) -> str:
     """
     Builds a prompt for GPT-4o to help find issues we should merge.
-    Formats our data in a way that makes it easy for the model to analyze.
+    Formats data in a way that makes it easy for the model to analyze.
     """
     return f"""Analyze the following QA issues and identify which ones should be merged based on similar root causes or overlapping problems.
 For each potential merge, explain the rationale and provide a confidence score (0-1).

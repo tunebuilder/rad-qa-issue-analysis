@@ -9,12 +9,12 @@ import os
 # Author: David Warren
 # Created: Dec 7, 2024
 #
-# Core classes for handling our QA issue merges.
+# Core classes for handlingQA issue merges.
 # Includes validation, auditing, and the actual merge logic.
 """
 
 class MergeValidator:
-    """Makes sure we don't mess up our data when merging issues"""
+    """Makes sure we don't corrupt data when merging issues"""
     
     @staticmethod
     def validate_merge_group(df: pd.DataFrame, issues: List[str]) -> Tuple[bool, str]:
