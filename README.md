@@ -1,86 +1,80 @@
 # QA Issues Analysis Tool
 
-A streamlined tool for analyzing and managing QA testing issues for chatbot responses, powered by GPT-4o for intelligent issue analysis and merging.
+A tool for analyzing and managing QA testing issues for chatbot responses. Uses LLM to help spot patterns and suggest merges for related issues.
 
 ## Overview
 
-The QA Issues Analysis Tool is designed to automate and enhance the quality assurance process for chatbot responses. It processes QA testing data through advanced LLM analysis to identify patterns, merge related issues, and generate actionable insights for development teams.
+Designed to accelerate the interpretation of QA results, making it faster and more efficient to implement effective changes. The tool analyzes test data using GPT-4o to find patterns, keeps humans in the loop in determining whether to fully or selectively combine suggested issue groups, and generates insights into cause and suggested improvements of detected issues.
 
-### Key Features
+### Main Features
 
-- 📊 **Automated Issue Analysis**: Uses GPT-4o to analyze QA issues and identify patterns
-- 🔄 **Smart Issue Merging**: Automatically suggests and handles merging of related issues with selective merge options
-- 📈 **Comprehensive Reporting**: Generates detailed PDF reports with insights and recommendations
-- 💾 **Cache Management**: Efficient handling of merge history with options to use or clear cache
-- 📱 **Modern UI**: Clean, intuitive interface with streamlined controls
+- Automated issue analysis using LLM
+- Smart merging of related issues
+- PDF reports with insights and recommendations
+- Merge history management
 
-## Installation
+## Setup
 
-### Prerequisites
+### Requirements
 
-- Python 3.8 or higher
+- Python 3.8+
 - OpenAI API key
 
-### Setup
+### Installation
 
-1. Clone the repository:
+1. Clone the repo:
 ```bash
 git clone https://github.com/your-username/SUDCare-issue-analysis.git
 cd SUDCare-issue-analysis
 ```
 
-2. Create and activate a virtual environment:
+2. Set up Python environment:
 ```bash
 python -m venv env
-# On Windows
-env\Scripts\activate
-# On Unix or MacOS
-source env/bin/activate
+env\Scripts\activate  # Windows
+source env/bin/activate  # Unix/MacOS
 ```
 
-3. Install dependencies:
+3. Install packages:
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Create a `.env` file in the root directory with your OpenAI API key:
-```env
-OPENAI_API_KEY=your_api_key_here
+4. Set your OpenAI API key in the terminal using the `set` command:
+```bash
+set OPENAI_API_KEY=your_api_key_here
 ```
 
-## Usage
+## Using the Tool
 
-1. Start the application:
+1. Start it up:
 ```bash
 streamlit run app.py
 ```
 
-2. Access the web interface at `http://localhost:8501`
+2. Open `http://localhost:8501` in your browser
 
-### Workflow
+### Basic Workflow
 
-1. **Data Input**
-   - Upload your QA issues CSV file through the web interface
-   - File must include required columns (Issue ID, Result ID, etc.)
+1. **Upload Data**
+   - Upload your QA issues CSV in the format that exists in the QA workbook.
+   - Make sure it has all required columns
 
-2. **Issue Analysis**
-   - Navigate to the "Merge Analysis" tab
-   - Click "Analyze Issues for Merging"
-   - Review suggested merge groups based on LLM analysis
+2. **Analyze Issues**
+   - Go to "Merge Analysis"
+   - Click "Analyze Issues"
+   - Review suggested merges
 
-3. **Issue Merging**
-   - Review each merge suggestion with confidence scores
-   - Apply merges as appropriate
-   - Download updated CSV with merged issues
+3. **Merge Issues**
+   - Check merge suggestions and confidence scores
+   - Apply the ones that make sense
+   - Download the updated CSV
 
-4. **Report Generation**
-   - Generate comprehensive PDF reports
-   - View analysis of patterns and trends
-   - Get actionable recommendations
+4. **Generate Report**
+   - Get a PDF report with analysis and recommendations
 
-### Input Data Structure
+### Required CSV Columns
 
-Required CSV columns:
 - Issue ID
 - Result ID
 - Test Case IDs
@@ -97,107 +91,54 @@ Required CSV columns:
 
 ## Features
 
-### 1. Overview Tab
-- Total issues count
-- Active vs. merged issues statistics
-- Distribution visualizations
-- Standards analysis
+### Overview Tab
+- See total issues
+- Track active vs merged issues
+- View distribution charts
+- Check standards analysis
 
-### 2. Merge Analysis Tab
-- LLM-powered merge suggestions
-- Confidence scoring
-- Detailed merge previews
-- Selective merge functionality for individual issues
-- Cache management options
+### Merge Analysis Tab
+- Get merge suggestions from GPT-4o
+- See confidence scores
+- Preview merges
+- Pick which issues to merge
+- Manage merge history
 
-### 3. Merge History Tab
-- Complete merge audit trail
-- Detailed merge records
-- Timestamp tracking
+### Merge History Tab
+- View all past merges
+- Check merge details
+- Track when merges happened
 
 ## Cache Management
 
-The tool maintains a cache of merge history for efficiency:
-- Toggle cache usage with checkbox
-- Clear cache with dedicated button
-- Automatic cache updates
+We keep track of merge history to make things faster:
+- Turn cache on/off as needed
+- Clear it when you want
+- Auto-updates as you work
 
-## Report Generation
+## Report Details
 
-Generated PDF reports include:
-- Executive summary
-- Issue patterns analysis
-- Priority recommendations
-- Visual data representations
-- Improvement roadmap
+Our PDF reports include:
+- Quick summary
+- Pattern analysis
+- What to fix first
+- Charts and graphs
+- Step-by-step improvement plan
 
-### Analysis Scope
-The analysis focuses on active issues to provide relevant insights:
-- **Included Issues**:
-  1. Merged issue groups (representing multiple related issues)
-  2. Individual unmerged issues
-- **Excluded Issues**: Individual issues that were previously merged into groups (to avoid redundancy)
+We focus on active issues to keep things relevant:
+- Look at merged groups (related issues)
+- Check individual unmerged issues
+- Skip already-merged individual issues to avoid duplicates
 
-Each merged group represents multiple related issues that share common patterns or root causes, ensuring a comprehensive yet non-redundant analysis.
-
-## Recent Improvements
+## Recent Fixes
 
 ### Bug Fixes
 1. **Unmerged Issues Counter**
-   - Fixed issue count tracking for non-merged items
-   - Added real-time updates for merge decisions
-   - Implemented validation testing
+   - Fixed issue counting
+   - Added live updates
+   - Added validation
 
 2. **Active Issues Counter**
-   - Corrected 'Active Issues' calculation
-   - Improved status field validation
-   - Added test cases for counter accuracy
-
-### UI Enhancements
-1. **Selective Merge Functionality**
-   - Added ability to exclude specific issues from merge groups
-   - Individual issue selection within merge groups
-   - Preview updates for partial selections
-   - Validation for partial merge scenarios
-
-2. **Interface Decluttering**
-   - Streamlined UI elements for better user experience
-   - Moved detailed information to documentation
-   - Enhanced overall interface clarity
-
-### Documentation Updates
-- Expanded README with detailed feature descriptions
-- Added comprehensive analysis scope information
-- Updated technical documentation for new features
-- Included validation and testing procedures
-
-## Development
-
-### Project Structure
-```
-SUDCare-issue-analysis/
-├── app.py              # Main Streamlit application
-├── llm_utils.py        # LLM integration utilities
-├── merge_utils.py      # Merge operation handling
-├── analysis_utils.py   # Data analysis functions
-├── report_utils.py     # Report generation utilities
-├── requirements.txt    # Project dependencies
-└── .env               # Environment variables
-```
-
-### Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Deployment
-
-
-
+   - Fixed the math
+   - Better status checking
+   - Added tests

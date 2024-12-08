@@ -1,3 +1,12 @@
+"""
+# LLM Integration for SUDCare QA Analysis
+# Author: David Warren
+# Created: Dec 7, 2024
+#
+# Handles all our OpenAI GPT-4o integration for analyzing QA issues.
+# Main focus is on finding similar issues we can merge to reduce duplicates.
+"""
+
 from openai import OpenAI
 import pandas as pd
 from typing import List, Dict, Tuple
@@ -5,24 +14,27 @@ import json
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load config from .env
 load_dotenv()
 
-# Get API key from environment
+# Need this for the OpenAI API
 api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
     raise ValueError("OPENAI_API_KEY not found in environment variables")
 
 print(f"[DEBUG] Using API key starting with: {api_key[:10]}...")
 
-# Initialize OpenAI client
+# Set up our OpenAI connection
 client = OpenAI(
     api_key=api_key,
     base_url="https://api.openai.com/v1"  # Explicitly set base URL
 )
 
 def create_merge_analysis_prompt(issues: List[Dict]) -> str:
-    """Create a prompt for analyzing potential issue merges"""
+    """
+    Builds a prompt for GPT-4o to help find issues we should merge.
+    Formats our data in a way that makes it easy for the model to analyze.
+    """
     return f"""Analyze the following QA issues and identify which ones should be merged based on similar root causes or overlapping problems.
 For each potential merge, explain the rationale and provide a confidence score (0-1).
 
@@ -42,8 +54,8 @@ Provide your response in the following JSON format:
 
 def analyze_issues_for_merge(df: pd.DataFrame) -> List[Dict]:
     """
-    Analyze issues to identify potential merges using the LLM.
-    Returns a list of merge suggestions.
+    Main merge analysis function - uses GPT-4o to find similar issues.
+    Returns suggestions for which issues we should combine.
     """
     all_merge_suggestions = []
     processed_issues = set()  # Track which issues have been included in suggestions
@@ -171,8 +183,8 @@ def analyze_issues_for_merge(df: pd.DataFrame) -> List[Dict]:
 
 def apply_merges(df: pd.DataFrame, merge_suggestions: List[Dict]) -> Tuple[pd.DataFrame, List[Dict]]:
     """
-    Apply the suggested merges to the DataFrame and return the updated DataFrame
-    along with a list of merge actions taken.
+    Takes merge suggestions and actually applies them to our data.
+    Returns both the updated data and a log of what we merged.
     """
     merge_actions = []
     df = df.copy()
@@ -206,5 +218,5 @@ def apply_merges(df: pd.DataFrame, merge_suggestions: List[Dict]) -> Tuple[pd.Da
     
     return df, merge_actions
 
-# Explicitly export the functions
+# These are the functions other modules should use
 __all__ = ['create_merge_analysis_prompt', 'analyze_issues_for_merge', 'apply_merges']

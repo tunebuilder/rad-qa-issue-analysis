@@ -4,14 +4,23 @@ from datetime import datetime
 import json
 import os
 
+"""
+# QA Issue Merge Utilities
+# Author: David Warren
+# Created: Dec 7, 2024
+#
+# Core classes for handling our QA issue merges.
+# Includes validation, auditing, and the actual merge logic.
+"""
+
 class MergeValidator:
-    """Validates merge operations and ensures data integrity"""
+    """Makes sure we don't mess up our data when merging issues"""
     
     @staticmethod
     def validate_merge_group(df: pd.DataFrame, issues: List[str]) -> Tuple[bool, str]:
         """
-        Validates if a group of issues can be merged.
-        Returns (is_valid, error_message).
+        Checks if we can safely merge a group of issues.
+        Returns (ok_to_merge, error_msg).
         """
         if len(issues) < 2:
             return False, "Need at least 2 issues to merge"
@@ -36,13 +45,13 @@ class MergeValidator:
         return True, ""
 
 class MergeAuditor:
-    """Tracks and logs merge operations"""
+    """Keeps track of what we merged and when"""
     
     def __init__(self, audit_file: str = "merge_audit.jsonl"):
         self.audit_file = audit_file
         
     def log_merge(self, merge_action: Dict) -> None:
-        """Log a merge action to the audit file"""
+        """Writes merge details to our audit log"""
         audit_entry = {
             "timestamp": datetime.now().isoformat(),
             "action": "merge",
@@ -53,7 +62,7 @@ class MergeAuditor:
             f.write(json.dumps(audit_entry) + "\n")
     
     def get_merge_history(self, use_cache: bool = True) -> List[Dict]:
-        """Read the merge history from the audit file"""
+        """Pulls up our merge history from the log file"""
         if not use_cache:
             return []
             
@@ -64,7 +73,7 @@ class MergeAuditor:
             return []
             
     def clear_cache(self) -> bool:
-        """Delete the merge history cache file"""
+        """Wipes out the merge history if needed"""
         try:
             if os.path.exists(self.audit_file):
                 os.remove(self.audit_file)
@@ -75,11 +84,11 @@ class MergeAuditor:
 
     def get_unmerged_issues_count(self, df: pd.DataFrame) -> int:
         """
-        Returns the count of issues that are not part of any merge group.
-        An issue is considered unmerged if it:
-        - Has no Status set
-        - Is not a secondary issue in a merge (no Merged With Issue ID)
-        - Is not a primary issue in a merge (no Merged IDs)
+        Counts how many issues haven't been merged yet.
+        An issue is still unmerged if it's not:
+        - Part of a merge group
+        - A secondary issue in someone else's merge
+        - The primary issue in a merge
         """
         return len(df[
             pd.isna(df["Status"]) & 
@@ -88,7 +97,7 @@ class MergeAuditor:
         ])
 
 class MergeExecutor:
-    """Executes merge operations with validation and auditing"""
+    """Handles the actual merge operations with safety checks"""
     
     def __init__(self):
         self.validator = MergeValidator()
@@ -96,7 +105,8 @@ class MergeExecutor:
         
     def combine_field_values(self, values: List[str], field: str) -> str:
         """
-        Combines multiple field values based on field-specific rules.
+        Figures out how to combine values from different issues.
+        Each field type needs its own rules for combining.
         """
         # Remove empty values and duplicates
         values = [str(v) for v in values if pd.notna(v) and str(v).strip()]
@@ -120,8 +130,8 @@ class MergeExecutor:
     
     def execute_merge(self, df: pd.DataFrame, merge_suggestion: Dict) -> Tuple[pd.DataFrame, Optional[Dict]]:
         """
-        Executes a merge operation with validation and auditing.
-        Returns (updated_df, merge_action) or (original_df, None) if validation fails.
+        Does the actual merge after running safety checks.
+        Returns the updated data and what we did, or None if something went wrong.
         """
         # Get the selected issues (if available) or use all issues
         issues = merge_suggestion.get("selected_issues", merge_suggestion["issues"])

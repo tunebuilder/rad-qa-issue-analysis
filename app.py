@@ -1,3 +1,13 @@
+"""
+# QA Issues Analysis Tool for SUDCare Chatbot
+# Author: John Smith
+# Created: December 7, 2024
+#
+# This is our main application for analyzing QA testing issues in the SUDCare chatbot.
+# It helps us identify patterns in QA failures and suggests potential issue merges
+# to streamline our testing process.
+"""
+
 import streamlit as st
 import pandas as pd
 from dotenv import load_dotenv
@@ -10,24 +20,24 @@ from analysis_utils import analyze_qa_issues, calculate_priority_score, generate
 from report_utils import generate_report
 import logging
 
-# Configure logging
+# Set up basic logging for debugging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Load environment variables
+# Load our config from .env file
 load_dotenv()
 
-# Initialize merge executor
+# Set up our merge helper
 merge_executor = MergeExecutor()
 
-# Configure Streamlit page
+# Set up the page layout - using wide mode for better data visibility
 st.set_page_config(
     page_title="QA Issues Analysis Tool",
     page_icon="📊",
     layout="wide"
 )
 
-# Define the QA standards
+# These are our core QA standards that we check against
 QA_STANDARDS = [
     "Suzy introduces itself clearly, explaining its supportive role in recovery",
     "Suzy uses accessible, recovery-specific language",
@@ -42,7 +52,7 @@ QA_STANDARDS = [
     "Suzy offers relevant, supportive educational information when appropriate"
 ]
 
-# Initialize session state variables if they don't exist
+# Keep track of our app's state between reruns
 if 'df' not in st.session_state:
     st.session_state.df = None
 if 'merge_suggestions' not in st.session_state:
@@ -52,7 +62,7 @@ if 'analysis_results' not in st.session_state:
 if 'current_tab' not in st.session_state:
     st.session_state.current_tab = 0
 
-# Add custom CSS
+# Some custom CSS to make the UI look cleaner and more professional
 st.markdown("""
 <style>
     /* File upload area */
@@ -129,7 +139,11 @@ st.markdown("""
 
 @st.cache_data
 def load_and_validate_data(uploaded_file):
-    """Load and validate the uploaded CSV file"""
+    """
+    Handles the loading and validation of our CSV data file.
+    Makes sure we have all required columns and sets up merge tracking columns.
+    Returns the processed dataframe or an error message if something's wrong.
+    """
     try:
         print("[DEBUG] Loading CSV file...")
         df = pd.read_csv(uploaded_file)
@@ -189,7 +203,10 @@ def load_and_validate_data(uploaded_file):
         return None, f"Error loading file: {str(e)}"
 
 def display_merge_preview(df: pd.DataFrame, merge_suggestion: dict, group_index: int):
-    """Display a detailed preview of a merge operation"""
+    """
+    Shows a detailed view of issues that could be merged together.
+    Lets the user pick which secondary issues to include in the merge.
+    """
     issues = merge_suggestion["issues"]
     primary_issue = issues[0]
     secondary_issues = issues[1:]

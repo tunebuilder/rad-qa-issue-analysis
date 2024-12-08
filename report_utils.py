@@ -1,3 +1,12 @@
+"""
+# PDF Report Generator for SUDCare QA
+# Author: David Warren
+# Created: Dec 7, 2024
+#
+# Handles report generation for our QA analysis results.
+# Uses matplotlib for charts and FPDF for the PDF output.
+"""
+
 from typing import Dict, List
 import pandas as pd
 from datetime import datetime
@@ -9,11 +18,11 @@ import seaborn as sns
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
-# Configure logging
+# Basic logging setup
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Set up matplotlib style
+# Tweaked matplotlib to make our charts look better
 plt.style.use('bmh')  # Using a built-in style that's always available
 plt.rcParams.update({
     'figure.figsize': [10, 6],
@@ -26,7 +35,7 @@ plt.rcParams.update({
     'grid.alpha': 0.3
 })
 
-# Set seaborn style separately
+# Making seaborn play nice with our style
 sns.set_theme(style="whitegrid", palette="deep")
 
 class QAReport(FPDF):
@@ -38,7 +47,7 @@ class QAReport(FPDF):
         self._create_header()
     
     def _create_header(self):
-        """Create the report header"""
+        """Puts our standard header on each page"""
         self.set_font('Arial', 'B', 16)
         self.cell(0, 10, 'SUDCare QA Analysis Report', ln=True, align='C')
         self.set_font('Arial', '', 11)
@@ -46,21 +55,21 @@ class QAReport(FPDF):
         self.ln(5)
     
     def chapter_title(self, title: str):
-        """Add a chapter title"""
+        """Adds a big heading for new chapters"""
         self.set_font('Arial', 'B', 14)
         self.cell(0, 10, title, ln=True)
         self.set_font('Arial', '', 11)
         self.ln(5)
     
     def section_title(self, title: str):
-        """Add a section title"""
+        """Adds a smaller heading for sections"""
         self.set_font('Arial', 'B', 12)
         self.cell(0, 8, title, ln=True)
         self.set_font('Arial', '', 11)
         self.ln(3)
     
     def body_text(self, text: str):
-        """Add body text with proper line breaks"""
+        """Handles regular text with smart line wrapping"""
         self.set_font('Arial', '', 11)
         # Calculate maximum line width
         max_width = self.w - 2 * self.l_margin
@@ -89,14 +98,14 @@ class QAReport(FPDF):
         self.ln(2)
     
     def bullet_points(self, points: List[str]):
-        """Add bullet points"""
+        """Makes nice bullet point lists"""
         self.set_font('Arial', '', 11)
         for point in points:
             self.cell(5, 5, "•", ln=0)
             self.cell(0, 5, point, ln=True)
     
     def add_chart(self, image_path: str, caption: str = None):
-        """Add a chart with optional caption"""
+        """Drops in a chart and centers it nicely"""
         if os.path.exists(image_path):
             # Calculate image dimensions to fit page width
             img_width = self.w - 2 * self.l_margin
@@ -107,7 +116,7 @@ class QAReport(FPDF):
             self.ln(5)
 
 def save_chart(fig, filename: str) -> bool:
-    """Save a matplotlib figure"""
+    """Saves our matplotlib charts as PNG files"""
     try:
         logger.debug(f"Attempting to save {filename}")
         fig.savefig(filename, bbox_inches='tight', dpi=100)
@@ -121,7 +130,7 @@ def save_chart(fig, filename: str) -> bool:
 
 
 def generate_charts(df: pd.DataFrame, analysis_results: Dict) -> List[str]:
-    """Generate charts for the report using matplotlib"""
+    """Creates all the charts we need for our report"""
     chart_files = []
     
     try:
@@ -195,7 +204,7 @@ def generate_charts(df: pd.DataFrame, analysis_results: Dict) -> List[str]:
         return chart_files
 
 def generate_report(df: pd.DataFrame, analysis_results: Dict, output_path: str = "qa_analysis_report.pdf") -> str:
-    """Generate a PDF report with analysis results and visualizations"""
+    """Puts together the full PDF report with all our analysis"""
     logger.info("Starting report generation...")
     chart_files = []
     
@@ -341,5 +350,5 @@ Each merged group represents multiple related issues that share common patterns 
                 pass
         raise
 
-# Export functions at module level
+# What other files can import
 __all__ = ['generate_report', 'generate_charts', 'save_chart', 'QAReport']

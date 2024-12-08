@@ -1,3 +1,12 @@
+"""
+# Analysis utilities for SUDCare QA
+# Written by: David Warren
+# Last updated: Dec 7, 2024
+#
+# Core utilities for analyzing our QA testing data. Uses OpenAI's GPT-4 
+# to help spot patterns and generate insights from our test results.
+"""
+
 from typing import Dict, List, Optional
 import pandas as pd
 from openai import OpenAI
@@ -5,17 +14,20 @@ import json
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
+# Grab our env vars
 load_dotenv()
 
-# Initialize OpenAI client
+# Set up OpenAI - using their official API
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
     base_url="https://api.openai.com/v1"
 )
 
 def create_analysis_prompt(df: pd.DataFrame) -> str:
-    """Create a prompt for analyzing QA issues and identifying patterns"""
+    """
+    Builds the prompt we send to GPT-4 for analyzing our QA data.
+    Takes our test results and formats them in a way the model can understand.
+    """
     
     # Get active issues
     active_issues = df[
@@ -103,8 +115,8 @@ Please provide your analysis in the following JSON format:
 
 def analyze_qa_issues(df: pd.DataFrame) -> Dict:
     """
-    Analyze QA issues to identify patterns, priorities, and generate recommendations.
-    Only considers active issues (unmerged + merged groups).
+    Main analysis function - looks through our QA data to find patterns and problems.
+    Only looks at active stuff (unmerged issues + merged groups) to avoid duplicates.
     """
     try:
         # Filter for active issues - handle NA values explicitly
@@ -170,12 +182,12 @@ def analyze_qa_issues(df: pd.DataFrame) -> Dict:
 
 def calculate_priority_score(issue_count: int, avg_score: float, is_merged: bool) -> float:
     """
-    Calculate a priority score (0-100) for a standard or issue group.
+    Figures out how important each issue/standard is (0-100 scale).
     
-    Factors:
-    - Number of issues (more issues = higher priority)
-    - Average severity score (higher score = higher priority)
-    - Merge status (merged issues indicate systemic problems)
+    What affects the score:
+    - How many issues we found (more = higher priority)
+    - How bad the issues are (higher score = bigger problem)
+    - Whether we've seen it before (merged issues = probably systemic)
     """
     # Base score from issue count (max 40 points)
     count_score = min(40, issue_count * 5)
@@ -190,8 +202,8 @@ def calculate_priority_score(issue_count: int, avg_score: float, is_merged: bool
 
 def generate_priority_areas(df: pd.DataFrame, analysis_results: Dict) -> List[Dict]:
     """
-    Generate a list of priority areas based on the analysis results and raw data.
-    Returns a sorted list of priority areas with scores.
+    Takes our analysis and raw data to figure out what we need to fix first.
+    Spits out a sorted list of problem areas with their priority scores.
     """
     priority_areas = []
     
